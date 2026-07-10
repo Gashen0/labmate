@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabMate - 智能分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-bg: #eff6ff;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --text-lighter: #94a3b8;
+            --white: #ffffff;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 20px 35px -5px rgba(37, 99, 235, 0.15), 0 10px 15px -3px rgba(37, 99, 235, 0.1);
+            --radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* 主内容 */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 60px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        /* ===== 步骤条 ===== */
+        .steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 40px;
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            min-width: 80px;
+        }
+
+        .step-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .step-circle svg { width: 20px; height: 20px; }
+
+        .step-item.active .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .step-item.active .step-circle::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            border: 2px solid rgba(37, 99, 235, 0.2);
+            animation: stepPulse 2s infinite;
+        }
+
+        .step-item.done .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .step-item.pending .step-circle {
+            background: var(--white);
+            color: var(--text-lighter);
+            border: 2px solid var(--border);
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: var(--transition);
+        }
+
+        .step-item.active .step-label { color: var(--primary); font-weight: 600; }
+        .step-item.done .step-label { color: var(--primary); }
+        .step-item.pending .step-label { color: var(--text-lighter); }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin-top: -24px;
+            position: relative;
+            min-width: 40px;
+        }
+
+        .step-line .fill {
+            position: absolute;
+            top: 0; left: 0;
+            height: 100%;
+            width: 0;
+            background: var(--primary);
+            transition: width 0.5s ease;
+            border-radius: 1px;
+        }
+
+        .step-line.filled .fill { width: 100%; }
+
+        /* ===== 页面标题 ===== */
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            font-size: clamp(24px, 3.5vw, 32px);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .page-header .subtitle {
+            font-size: 15px;
+            color: var(--text-light);
+        }
+
+        /* ===== 数据概览 ===== */
+        .overview-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 28px;
+            margin-bottom: 28px;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+        }
+
+        .overview-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .overview-card .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .overview-card .card-title svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--primary);
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .overview-item {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .overview-item:hover {
+            background: var(--primary-bg);
+        }
+
+        .overview-item .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 6px;
+            line-height: 1;
+        }
+
+        .overview-item .label {
+            font-size: 13px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* ===== 图表区 ===== */
+        .chart-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 28px;
+            margin-bottom: 28px;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+        }
+
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chart-card .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-card .card-title svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--primary);
+        }
+
+        .chart-tabs {
+            display: flex;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .chart-tab {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: none;
+            white-space: nowrap;
+        }
+
+        .chart-tab:hover {
+            color: var(--text);
+        }
+
+        .chart-tab.active {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            font-weight: 600;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 360px;
+            position: relative;
+        }
+
+        .chart-conclusion {
+            margin-top: 20px;
+            padding: 16px 20px;
+            background: var(--primary-bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text);
+            line-height: 1.6;
+            border-left: 3px solid var(--primary);
+        }
+
+        .chart-conclusion svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--primary);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* ===== AI分析结论 ===== */
+        .ai-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 32px;
+            margin-bottom: 40px;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light), #8b5cf6);
+        }
+
+        .ai-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .ai-card .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-card .card-title .ai-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-card .card-title .ai-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        /* AI 结构化输出 */
+        .ai-output {
+            margin-bottom: 32px;
+        }
+
+        .ai-section {
+            background: var(--bg);
+            border-radius: 14px;
+            padding: 22px 24px;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--primary);
+            transition: var(--transition);
+            animation: fadeInUp 0.4s ease backwards;
+        }
+
+        .ai-section:hover {
+            background: var(--white);
+            box-shadow: var(--shadow);
+            transform: translateX(4px);
+        }
+
+        .ai-section.type-section { border-left-color: #2563eb; }
+        .ai-section.method-section { border-left-color: #8b5cf6; }
+        .ai-section.analysis-section { border-left-color: #10b981; }
+        .ai-section.quality-section { border-left-color: #f59e0b; }
+        .ai-section.suggestion-section { border-left-color: #ef4444; }
+
+        .ai-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .ai-section-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .ai-section-icon svg {
+            width: 16px;
+            height: 16px;
+            fill: white;
+        }
+
+        .type-section .ai-section-icon { background: #2563eb; }
+        .method-section .ai-section-icon { background: #8b5cf6; }
+        .analysis-section .ai-section-icon { background: #10b981; }
+        .quality-section .ai-section-icon { background: #f59e0b; }
+        .suggestion-section .ai-section-icon { background: #ef4444; }
+
+        .ai-section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .ai-section-body {
+            font-size: 14px;
+            color: var(--text);
+            line-height: 1.75;
+            padding-left: 40px;
+        }
+
+        .ai-section-body p {
+            margin-bottom: 8px;
+        }
+
+        .ai-section-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 打字机光标 */
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* 降级标签 */
+        .degrade-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #fef3c7;
+            color: #d97706;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+
+        /* CTA 按钮 */
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            font-size: 17px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+
+        .cta-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cta-btn:active {
+            transform: translateY(0);
+        }
+
+        .cta-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+            transition: transform 0.3s ease;
+        }
+
+        .cta-btn:hover svg {
+            transform: translateX(4px);
+        }
+
+        .cta-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-wrapper {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* ===== 动画 ===== */
+        .ai-loading { text-align: center; padding: 24px 0; }
+        .ai-loading p { color: #64748b; font-size: 14px; margin-top: 12px; }
+        .ai-loading-dots { display: flex; justify-content: center; gap: 8px; }
+        .ai-loading-dots span {
+            width: 10px; height: 10px; border-radius: 50%; background: var(--primary);
+            animation: aiPulse 1.4s ease-in-out infinite;
+        }
+        .ai-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .ai-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes aiPulse {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .ai-tag {
+            display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 20px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff;
+            margin-left: 10px; vertical-align: middle; font-weight: 500;
+        }
+        .cta-btn.secondary {
+            background: #fff; color: var(--primary); border: 2px solid var(--primary);
+        }
+        .cta-btn.secondary svg { fill: var(--primary); }
+        .cta-btn.secondary:hover {
+            background: var(--primary); color: #fff;
+        }
+        .cta-btn.secondary:hover svg { fill: #fff; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes stepPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.08); }
+        }
+
+        .overview-card { animation: fadeInUp 0.5s ease backwards; animation-delay: 0.1s; }
+        .chart-card { animation: fadeInUp 0.5s ease backwards; animation-delay: 0.2s; }
+        .ai-card { animation: fadeInUp 0.5s ease backwards; animation-delay: 0.3s; }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .steps { max-width: 100%; margin-bottom: 32px; }
+            .step-item { min-width: 60px; }
+            .step-circle { width: 38px; height: 38px; font-size: 13px; }
+            .step-label { font-size: 12px; }
+
+            .overview-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .overview-item .value { font-size: 24px; }
+
+            .chart-container { height: 280px; }
+
+            .chart-header { flex-direction: column; align-items: flex-start; }
+
+            .ai-card { padding: 24px; }
+
+            .main { padding: 10px 0 40px; }
+        }
+
+        @media (max-width: 480px) {
+            .overview-card, .chart-card, .ai-card { padding: 20px; }
+
+            .overview-grid { gap: 12px; }
+            .overview-item { padding: 16px 12px; }
+            .overview-item .value { font-size: 20px; }
+
+            .chart-tab { padding: 6px 14px; font-size: 13px; }
+
+            .cta-btn {
+                padding: 14px 36px;
+                font-size: 16px;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .btn-wrapper { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <nav class="navbar">
+            <a class="logo" href="../页面/index.html">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 2a1 1 0 0 0-1 1v1H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3h-2V3a1 1 0 0 0-1-1H9zM7 8h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/>
+                    </svg>
+                </div>
+                LabMate
+            </a>
+        </nav>
+
+        <!-- 主内容 -->
+        <section class="main">
+            <!-- 步骤条 -->
+            <div class="steps">
+                <div class="step-item done" data-step="1">
+                    <div class="step-circle">
+                        <svg viewBox="0 0 24 24" fill="white">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                    </div>
+                    <span class="step-label">上传数据</span>
+                </div>
+                <div class="step-line filled" data-line="1"><div class="fill"></div></div>
+                <div class="step-item active" data-step="2">
+                    <div class="step-circle">
+                        <svg viewBox="0 0 24 24" fill="white">
+                            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                        </svg>
+                    </div>
+                    <span class="step-label">智能分析</span>
+                </div>
+                <div class="step-line" data-line="2"><div class="fill"></div></div>
+                <div class="step-item pending" data-step="3">
+                    <div class="step-circle">3</div>
+                    <span class="step-label">生成报告</span>
+                </div>
+            </div>
+
+            <!-- 页面标题 -->
+            <div class="page-header">
+                <h1>分析结果</h1>
+                <p class="subtitle" id="pageSubtitle">正在读取数据...</p>
+            </div>
+
+            <!-- 数据概览 -->
+            <div class="overview-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    数据概览
+                </div>
+                <div class="overview-grid">
+                    <div class="overview-item">
+                        <div class="value" id="overviewRows">--</div>
+                        <div class="label">数据行数</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="value" id="overviewCols">--</div>
+                        <div class="label">数据列数</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="value" id="overviewType">--</div>
+                        <div class="label">数值列数</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="value" id="overviewSize">--</div>
+                        <div class="label">文件大小</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 各列统计摘要 -->
+            <div class="overview-card" id="colStatsCard" style="display:none; margin-top: 16px;">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    各列统计摘要
+                </div>
+                <div id="colStatsSummary" style="font-size:13px; color:var(--text-light); line-height:1.8;"></div>
+            </div>
+
+            <!-- 图表展示 -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+                        数据可视化
+                    </div>
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" data-chart="line" onclick="switchChart('line')">折线图</button>
+                        <button class="chart-tab" data-chart="bar" onclick="switchChart('bar')">柱状图</button>
+                        <button class="chart-tab" data-chart="scatter" onclick="switchChart('scatter')">散点图</button>
+                        <button class="chart-tab" data-chart="box" onclick="switchChart('box')">箱线图</button>
+                    </div>
+                </div>
+                <div class="chart-container" id="chartContainer"></div>
+                <div class="chart-conclusion" id="chartConclusion">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    <span id="conclusionText">趋势分析：数据在3月到6月呈稳步上升趋势，增长率约12%。</span>
+                </div>
+            </div>
+
+            <!-- AI分析结论 -->
+            <div class="ai-card">
+                <div class="card-title">
+                    <div class="ai-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 2.48-.94 4.95-2.83 6.83-3.78 3.75-9.9 3.75-13.68 0-3.78-3.75-3.78-9.83 0-13.58 3.78-3.75 9.9-3.75 13.68 0L21 2v8.12zM12.5 8v4.25l3.5 2.08-.72 1.21L11 13V8h1.5z"/></svg>
+                    </div>
+                    AI 智能分析
+                    <span id="aiTag" class="ai-tag" style="display:none;">AI 深度分析</span>
+                </div>
+                <!-- AI 加载动画 -->
+                <div id="aiLoading" class="ai-loading" style="display:none;">
+                    <div class="ai-loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <p>AI 正在分析数据...</p>
+                </div>
+                <!-- AI 结构化输出 -->
+                <div id="aiOutput" class="ai-output">
+                    <!-- 初始占位 -->
+                    <div class="ai-section type-section" style="display:none;" id="aiSec_type">
+                        <div class="ai-section-header">
+                            <div class="ai-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+                            <span class="ai-section-title">实验类型识别</span>
+                        </div>
+                        <div class="ai-section-body" id="aiBody_type"></div>
+                    </div>
+                    <div class="ai-section method-section" style="display:none;" id="aiSec_method">
+                        <div class="ai-section-header">
+                            <div class="ai-section-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
+                            <span class="ai-section-title">推荐分析方法</span>
+                        </div>
+                        <div class="ai-section-body" id="aiBody_method"></div>
+                    </div>
+                    <div class="ai-section analysis-section" style="display:none;" id="aiSec_analysis">
+                        <div class="ai-section-header">
+                            <div class="ai-section-icon"><svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg></div>
+                            <span class="ai-section-title">数据分析</span>
+                        </div>
+                        <div class="ai-section-body" id="aiBody_analysis"></div>
+                    </div>
+                    <div class="ai-section quality-section" style="display:none;" id="aiSec_quality">
+                        <div class="ai-section-header">
+                            <div class="ai-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                            <span class="ai-section-title">数据质量评估</span>
+                        </div>
+                        <div class="ai-section-body" id="aiBody_quality"></div>
+                    </div>
+                    <div class="ai-section suggestion-section" style="display:none;" id="aiSec_suggestion">
+                        <div class="ai-section-header">
+                            <div class="ai-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div>
+                            <span class="ai-section-title">实验建议</span>
+                        </div>
+                        <div class="ai-section-body" id="aiBody_suggestion"></div>
+                    </div>
+                </div>
+                <div class="btn-wrapper" style="gap:12px;flex-wrap:wrap;">
+                    <button id="reAnalysisBtn" class="cta-btn secondary" onclick="reAnalysis()" style="display:none;">
+                        <span class="cta-text">重新分析</span>
+                        <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:white;"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    </button>
+                    <button class="cta-btn" onclick="window.location.href='../页面/report.html'">
+                        <span class="cta-text">生成报告</span>
+                        <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="../脚本/analysis.js"></script>
+</body>
+</html>

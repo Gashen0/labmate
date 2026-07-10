@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabMate - 分析报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1e40af; --primary-light: #3b82f6;
+            --bg: #f8fafc; --text: #1e293b; --text-light: #64748b; --text-lighter: #94a3b8;
+            --white: #ffffff; --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 25px -3px rgba(0,0,0,0.1);
+            --radius: 16px; --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px 60px; }
+
+        /* 导航 */
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
+        .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; color: var(--primary); text-decoration: none; }
+        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { color: var(--text-light); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 4px; }
+        .nav-back:hover { color: var(--primary); }
+
+        /* 步骤条 */
+        .steps { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 36px; max-width: 560px; margin-left: auto; margin-right: auto; }
+        .step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 80px; }
+        .step-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; transition: var(--transition); }
+        .step-circle svg { width: 18px; height: 18px; }
+        .step-item.done .step-circle { background: var(--primary); color: white; }
+        .step-item.active .step-circle { background: var(--primary); color: white; box-shadow: 0 4px 16px rgba(37,99,235,0.35); }
+        .step-label { font-size: 12px; color: var(--text-light); font-weight: 500; }
+        .step-item.active .step-label { color: var(--primary); font-weight: 600; }
+        .step-line { flex: 1; height: 2px; background: var(--border); margin-bottom: 24px; }
+        .step-line.done { background: var(--primary); }
+
+        /* 报告头 */
+        .report-header { text-align: center; margin-bottom: 36px; }
+        .report-header h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+        .report-meta { color: var(--text-light); font-size: 14px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+
+        /* 卡片 */
+        .card { background: var(--white); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); margin-bottom: 24px; }
+        .card-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .card-title svg { width: 22px; height: 22px; fill: var(--primary); }
+
+        /* 概览网格 */
+        .overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .overview-item { background: var(--bg); border-radius: 12px; padding: 18px 12px; text-align: center; }
+        .overview-item .value { font-size: 26px; font-weight: 800; color: var(--primary); }
+        .overview-item .label { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+        /* 统计表格 */
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .stats-table th { background: var(--bg); padding: 10px 12px; text-align: left; font-weight: 600; color: var(--text-light); font-size: 13px; border-bottom: 2px solid var(--border); }
+        .stats-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        .stats-table tr:last-child td { border-bottom: none; }
+
+        /* 图表 */
+        .chart-box { width: 100%; height: 380px; }
+
+        /* AI 结构化输出 */
+        .report-section { margin-bottom: 18px; padding: 20px 24px; background: var(--bg); border-radius: 12px; border-left: 4px solid var(--primary); }
+        .report-section.type-section { border-left-color: #2563eb; }
+        .report-section.method-section { border-left-color: #8b5cf6; }
+        .report-section.analysis-section { border-left-color: #10b981; }
+        .report-section.quality-section { border-left-color: #f59e0b; }
+        .report-section.suggestion-section { border-left-color: #ef4444; }
+        .report-section-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .report-section-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .report-section-icon svg { width: 15px; height: 15px; fill: white; }
+        .type-section .report-section-icon { background: #2563eb; }
+        .method-section .report-section-icon { background: #8b5cf6; }
+        .analysis-section .report-section-icon { background: #10b981; }
+        .quality-section .report-section-icon { background: #f59e0b; }
+        .suggestion-section .report-section-icon { background: #ef4444; }
+        .report-section-body { font-size: 14px; line-height: 1.75; color: var(--text); padding-left: 36px; }
+        .ai-badge { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 20px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; margin-left: 10px; }
+
+        /* 按钮 */
+        .btn-group { display: flex; justify-content: center; gap: 16px; margin-top: 36px; flex-wrap: wrap; }
+        .btn { padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; transition: var(--transition); text-decoration: none; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: white; box-shadow: 0 4px 16px rgba(37,99,235,0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,99,235,0.4); }
+        .btn-primary svg { width: 20px; height: 20px; fill: white; }
+        .btn-outline { background: white; color: var(--primary); border: 2px solid var(--border); }
+        .btn-outline:hover { border-color: var(--primary); background: var(--bg); }
+
+        /* 页脚 */
+        .report-footer { text-align: center; padding: 24px 0; color: var(--text-lighter); font-size: 12px; border-top: 1px solid var(--border); margin-top: 20px; }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .card { animation: fadeInUp 0.5s ease both; }
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
+
+        @media (max-width: 768px) {
+            .overview-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-box { height: 280px; }
+            .report-header h1 { font-size: 22px; }
+        }
+        @media (max-width: 480px) {
+            .container { padding: 0 16px 40px; }
+            .card { padding: 20px; }
+            .btn { padding: 12px 24px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 导航 -->
+        <nav class="navbar">
+            <a href="../页面/index.html" class="logo">
+                <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+                LabMate
+            </a>
+            <a href="../页面/index.html" class="nav-back">返回首页</a>
+        </nav>
+
+        <!-- 步骤条 -->
+        <div class="steps">
+            <div class="step-item done">
+                <div class="step-circle"><svg viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+                <span class="step-label">上传数据</span>
+            </div>
+            <div class="step-line done"></div>
+            <div class="step-item done">
+                <div class="step-circle"><svg viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+                <span class="step-label">智能分析</span>
+            </div>
+            <div class="step-line done"></div>
+            <div class="step-item active">
+                <div class="step-circle">3</div>
+                <span class="step-label">生成报告</span>
+            </div>
+        </div>
+
+        <!-- 报告内容 -->
+        <div id="reportContent">
+            <!-- 报告头 -->
+            <div class="report-header">
+                <h1>LabMate 实验数据分析报告</h1>
+                <div class="report-meta">
+                    <span id="rptFilename">--</span>
+                    <span id="rptTime">--</span>
+                </div>
+            </div>
+
+            <!-- 数据概览 -->
+            <div class="card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    一、数据概览
+                </div>
+                <div class="overview-grid">
+                    <div class="overview-item"><div class="value" id="rptRows">--</div><div class="label">数据行数</div></div>
+                    <div class="overview-item"><div class="value" id="rptCols">--</div><div class="label">数据列数</div></div>
+                    <div class="overview-item"><div class="value" id="rptNumCols">--</div><div class="label">数值列数</div></div>
+                    <div class="overview-item"><div class="value" id="rptSize">--</div><div class="label">文件大小</div></div>
+                </div>
+            </div>
+
+            <!-- 统计摘要 -->
+            <div class="card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                    二、统计摘要
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="stats-table" id="statsTable">
+                        <thead><tr><th>列名</th><th>均值</th><th>标准差</th><th>最小值</th><th>最大值</th><th>中位数</th><th>CV(%)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 数据可视化 -->
+            <div class="card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+                    三、数据可视化
+                </div>
+                <div class="chart-box" id="reportChart"></div>
+            </div>
+
+            <!-- AI 分析结论 -->
+            <div class="card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 2.48-.94 4.95-2.83 6.83-3.78 3.75-9.9 3.75-13.68 0-3.78-3.75-3.78-9.83 0-13.58 3.78-3.75 9.9-3.75 13.68 0L21 2v8.12z"/></svg>
+                    四、AI 分析结论
+                    <span id="rptAiBadge" class="ai-badge">AI 深度分析</span>
+                </div>
+                <div id="rptConclusions">
+                    <div class="report-section type-section" id="rptSec_type" style="display:none;">
+                        <div class="report-section-title"><div class="report-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>实验类型识别</div>
+                        <div class="report-section-body" id="rptBody_type"></div>
+                    </div>
+                    <div class="report-section method-section" id="rptSec_method" style="display:none;">
+                        <div class="report-section-title"><div class="report-section-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>推荐分析方法</div>
+                        <div class="report-section-body" id="rptBody_method"></div>
+                    </div>
+                    <div class="report-section analysis-section" id="rptSec_analysis" style="display:none;">
+                        <div class="report-section-title"><div class="report-section-icon"><svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg></div>数据分析</div>
+                        <div class="report-section-body" id="rptBody_analysis"></div>
+                    </div>
+                    <div class="report-section quality-section" id="rptSec_quality" style="display:none;">
+                        <div class="report-section-title"><div class="report-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>数据质量评估</div>
+                        <div class="report-section-body" id="rptBody_quality"></div>
+                    </div>
+                    <div class="report-section suggestion-section" id="rptSec_suggestion" style="display:none;">
+                        <div class="report-section-title"><div class="report-section-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div>实验建议</div>
+                        <div class="report-section-body" id="rptBody_suggestion"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="exportPDF()">
+                <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                导出 PDF
+            </button>
+            <a href="../页面/analysis.html" class="btn btn-outline">返回重新分析</a>
+            <a href="../页面/upload.html" class="btn btn-outline" onclick="localStorage.clear()">开始新的分析</a>
+        </div>
+
+        <div class="report-footer">由 LabMate 智能分析生成 · <span id="footerTime"></span></div>
+    </div>
+
+    <script src="../脚本/report.js"></script>
+</body>
+</html>

@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabMate - 上传数据</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-bg: #eff6ff;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --text-lighter: #94a3b8;
+            --white: #ffffff;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* 主内容 */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 0 60px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        /* ===== 步骤条 ===== */
+        .steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 56px;
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            min-width: 80px;
+        }
+
+        .step-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .step-circle svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* 当前步骤 */
+        .step-item.active .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .step-item.active .step-circle::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            border: 2px solid rgba(37, 99, 235, 0.2);
+            animation: stepPulse 2s infinite;
+        }
+
+        /* 未到达步骤 */
+        .step-item.pending .step-circle {
+            background: var(--white);
+            color: var(--text-lighter);
+            border: 2px solid var(--border);
+        }
+
+        /* 已完成步骤 */
+        .step-item.done .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: var(--transition);
+        }
+
+        .step-item.active .step-label {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .step-item.pending .step-label {
+            color: var(--text-lighter);
+        }
+
+        .step-item.done .step-label {
+            color: var(--primary);
+        }
+
+        /* 步骤连线 */
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin-top: -24px;
+            position: relative;
+            min-width: 40px;
+        }
+
+        .step-line .fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0;
+            background: var(--primary);
+            transition: width 0.5s ease;
+            border-radius: 1px;
+        }
+
+        .step-line.filled .fill {
+            width: 100%;
+        }
+
+        /* ===== 上传区域 ===== */
+        .upload-area {
+            width: 100%;
+            max-width: 640px;
+            border: 2.5px dashed var(--primary-light);
+            border-radius: var(--radius);
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--primary-bg);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.06);
+        }
+
+        .upload-area:hover::before {
+            opacity: 1;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: var(--primary-bg);
+            transform: scale(1.01);
+            box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.1);
+        }
+
+        .upload-area.has-file {
+            border-style: solid;
+            border-color: var(--border);
+            cursor: default;
+            padding: 32px 40px;
+        }
+
+        .upload-area.has-file:hover {
+            box-shadow: var(--shadow);
+            transform: none;
+        }
+
+        .upload-area.has-file::before {
+            display: none;
+        }
+
+        .upload-icon {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 20px;
+        }
+
+        .upload-icon .cloud {
+            width: 72px;
+            height: 72px;
+            fill: var(--primary);
+            opacity: 0.7;
+            transition: var(--transition);
+        }
+
+        .upload-area:hover .upload-icon .cloud {
+            opacity: 1;
+            transform: translateY(-4px);
+        }
+
+        .upload-icon .arrow {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 24px;
+            fill: var(--primary);
+            opacity: 0.5;
+            animation: arrowBounce 1.5s ease-in-out infinite;
+        }
+
+        .upload-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: var(--text-lighter);
+        }
+
+        /* 隐藏文件输入 */
+        .file-input {
+            display: none;
+        }
+
+        /* ===== 上传成功状态 ===== */
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 16px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .file-info.visible {
+            display: flex;
+        }
+
+        .file-icon-box {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--primary-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .file-icon-box svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--primary);
+        }
+
+        .file-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .file-size {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+
+        .file-success {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--success);
+            background: var(--success-bg);
+            padding: 4px 12px;
+            border-radius: 50px;
+            flex-shrink: 0;
+        }
+
+        .file-success.visible {
+            display: inline-flex;
+            animation: fadeInUp 0.4s ease;
+        }
+
+        .file-success svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--success);
+        }
+
+        /* ===== 进度条 ===== */
+        .progress-wrapper {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .progress-wrapper.visible {
+            display: block;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 50px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            border-radius: 50px;
+            transition: width 0.15s linear;
+        }
+
+        .progress-bar-fill.complete {
+            background: linear-gradient(90deg, var(--success), #22c55e);
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        /* ===== 重新上传按钮 ===== */
+        .reupload-btn {
+            display: none;
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            gap: 6px;
+            align-items: center;
+            transition: var(--transition);
+            padding: 0;
+        }
+
+        .reupload-btn.visible {
+            display: inline-flex;
+        }
+
+        .reupload-btn:hover {
+            color: var(--primary-dark);
+        }
+
+        .reupload-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* ===== 底部按钮区 ===== */
+        .actions {
+            margin-top: 48px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: 1.5px solid var(--border);
+            color: var(--text-light);
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 500;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .btn-back:hover {
+            border-color: var(--text-light);
+            color: var(--text);
+            background: var(--white);
+        }
+
+        .btn-back svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .btn-next {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--text-lighter);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: not-allowed;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-next.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-next.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-next.active:active {
+            transform: translateY(0);
+        }
+
+        .btn-next svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-next.active:hover svg {
+            transform: translateX(3px);
+        }
+
+        .btn-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== Toast 提示 ===== */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: var(--text);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: #dc2626;
+        }
+
+        .toast svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        /* ===== 动画 ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes stepPulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.08);
+            }
+        }
+
+        @keyframes arrowBounce {
+            0%, 100% {
+                transform: translateX(-50%) translateY(0);
+                opacity: 0.5;
+            }
+            50% {
+                transform: translateX(-50%) translateY(4px);
+                opacity: 1;
+            }
+        }
+
+        /* ===== Sheet 选择器 ===== */
+        .sheet-selector {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+            animation: fadeInUp 0.3s ease;
+        }
+        .sheet-selector.visible { display: block; }
+        .sheet-selector-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+        .sheet-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .sheet-tab {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1.5px solid var(--border);
+            background: var(--white);
+            color: var(--text-light);
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .sheet-tab:hover { border-color: var(--primary-light); color: var(--primary); }
+        .sheet-tab.active {
+            background: var(--primary-bg);
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .sheet-tab .sheet-rows {
+            font-size: 11px;
+            color: var(--text-lighter);
+            margin-left: 4px;
+        }
+
+        /* ===== 数据预览表 ===== */
+        .data-preview {
+            display: none;
+            margin-top: 24px;
+            width: 100%;
+            max-width: 100%;
+            animation: fadeInUp 0.4s ease;
+        }
+        .data-preview.visible { display: block; }
+        .data-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .data-preview-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .data-preview-hint {
+            font-size: 12px;
+            color: var(--text-lighter);
+        }
+        .data-table-wrap {
+            max-height: 320px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--white);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 400px;
+        }
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .data-table thead th {
+            background: var(--primary-bg);
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 12px;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--primary);
+        }
+        .data-table tbody td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            white-space: nowrap;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .data-table tbody tr:hover { background: var(--bg); }
+        .data-table tbody tr:nth-child(even) { background: #fafbfc; }
+        .data-table tbody tr:nth-child(even):hover { background: var(--bg); }
+        .data-table .row-num {
+            color: var(--text-lighter);
+            font-size: 11px;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        /* ===== 实验模板库 ===== */
+.template-library {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 32px;
+    animation: fadeInUp 0.4s ease;
+}
+
+.template-library-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.template-library-title svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--primary);
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.template-card {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+}
+
+.template-card:hover {
+    border-color: var(--primary-light);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    transform: translateY(-2px);
+}
+
+.template-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-bg);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.template-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    background: var(--primary);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.template-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.template-card-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: white;
+}
+
+.template-card-icon.blue {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.template-card-icon.green {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.template-card-icon.purple {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+}
+
+.template-card-icon.orange {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.template-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.template-card-desc {
+    font-size: 12px;
+    color: var(--text-lighter);
+    line-height: 1.4;
+}
+
+/* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .steps {
+                max-width: 100%;
+                margin-bottom: 40px;
+            }
+
+            .step-item {
+                min-width: 60px;
+            }
+
+            .step-circle {
+                width: 38px;
+                height: 38px;
+                font-size: 13px;
+            }
+
+            .step-label {
+                font-size: 12px;
+            }
+
+            .upload-area {
+                padding: 48px 28px;
+            }
+
+            .upload-area.has-file {
+                padding: 24px 28px;
+            }
+
+            .upload-icon .cloud {
+                width: 56px;
+                height: 56px;
+            }
+
+            .upload-title {
+                font-size: 15px;
+            }
+
+            .main {
+                padding: 10px 0 40px;
+            }
+
+            .actions {
+                flex-direction: column-reverse;
+                width: 100%;
+                max-width: 320px;
+            }
+
+            .btn-back, .btn-next {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .toast {
+                top: auto;
+                bottom: 24px;
+                right: 16px;
+                left: 16px;
+                transform: translateY(120%);
+            }
+
+            .toast.show {
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .file-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .file-success {
+                align-self: flex-start;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <nav class="navbar">
+            <a class="logo" href="../页面/index.html">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 2a1 1 0 0 0-1 1v1H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3h-2V3a1 1 0 0 0-1-1H9zM7 8h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/>
+                    </svg>
+                </div>
+                LabMate
+            </a>
+        </nav>
+
+        <!-- 主内容 -->
+        <section class="main">
+            <!-- 步骤条 -->
+            <div class="steps">
+                <div class="step-item active" data-step="1">
+                    <div class="step-circle">
+                        <svg viewBox="0 0 24 24" fill="white">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                    </div>
+                    <span class="step-label">上传数据</span>
+                </div>
+                <div class="step-line" data-line="1"><div class="fill"></div></div>
+                <div class="step-item pending" data-step="2">
+                    <div class="step-circle">2</div>
+                    <span class="step-label">智能分析</span>
+                </div>
+                <div class="step-line" data-line="2"><div class="fill"></div></div>
+                <div class="step-item pending" data-step="3">
+                    <div class="step-circle">3</div>
+                    <span class="step-label">生成报告</span>
+                </div>
+            </div>
+
+            <!-- 上传区域 -->
+            <div class="upload-area" id="uploadArea">
+                <input type="file" class="file-input" id="fileInput" accept=".xlsx,.xls,.csv">
+
+                <!-- 默认状态：上传提示 -->
+                <div class="upload-default" id="uploadDefault">
+                    <div class="upload-icon">
+                        <svg class="cloud" viewBox="0 0 24 24">
+                            <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                        </svg>
+                        <svg class="arrow" viewBox="0 0 24 24">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                        </svg>
+                    </div>
+                    <div class="upload-text">
+                        <p class="upload-title">拖拽Excel文件到此处，或点击上传</p>
+                        <p class="upload-hint">支持 .xlsx / .xls / .csv 格式</p>
+                    </div>
+                </div>
+
+                <!-- 上传成功状态 -->
+                <div class="file-info" id="fileInfo">
+                    <div class="file-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6v-2h12v2zm0-4H6v-2h12v2zm-3-5V3.5L18.5 9H13z"/>
+                        </svg>
+                    </div>
+                    <div class="file-details">
+                        <p class="file-name" id="fileName"></p>
+                        <div class="file-meta">
+                            <span class="file-size" id="fileSize"></span>
+                            <span class="file-success" id="fileSuccess">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                上传成功
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进度条 -->
+                <div class="progress-wrapper" id="progressWrapper">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">0%</p>
+                </div>
+
+                <!-- 重新上传 -->
+                <button class="reupload-btn" id="reuploadBtn">
+                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    重新上传
+                </button>
+            </div>
+
+            <!-- Sheet 选择器 -->
+            <div class="sheet-selector" id="sheetSelector">
+                <div class="sheet-selector-label">检测到多个工作表，请选择：</div>
+                <div class="sheet-tabs" id="sheetTabs"></div>
+            </div>
+
+            <!-- 数据预览 -->
+            <div class="data-preview" id="dataPreview">
+                <div class="data-preview-header">
+                    <span class="data-preview-title">数据预览</span>
+                    <span class="data-preview-hint" id="previewHint"></span>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table" id="dataTable">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 实验模板库 -->
+            <div class="template-library" id="templateLibrary">
+                <div class="template-library-title">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    没有数据？试试这些实验模板
+                </div>
+                <div class="template-grid" id="templateGrid">
+                    <div class="template-card" data-template="standard_curve" onclick="loadTemplate('standard_curve')">
+                        <div class="template-card-icon blue"><svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg></div>
+                        <div class="template-card-name">标准曲线</div>
+                        <div class="template-card-desc">分光光度法定量分析</div>
+                    </div>
+                    <div class="template-card" data-template="enzyme_kinetics" onclick="loadTemplate('enzyme_kinetics')">
+                        <div class="template-card-icon green"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div>
+                        <div class="template-card-name">酶动力学</div>
+                        <div class="template-card-desc">底物浓度-反应速率</div>
+                    </div>
+                    <div class="template-card" data-template="ph_activity" onclick="loadTemplate('ph_activity')">
+                        <div class="template-card-icon purple"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+                        <div class="template-card-name">pH-酶活性</div>
+                        <div class="template-card-desc">酸碱度对酶活性的影响</div>
+                    </div>
+                    <div class="template-card" data-template="temperature" onclick="loadTemplate('temperature')">
+                        <div class="template-card-icon orange"><svg viewBox="0 0 24 24"><path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-8c0-.55.45-1 1-1s1 .45 1 1h-1v1h1v2h-1v1h1v2h-2V5z"/></svg></div>
+                        <div class="template-card-name">温度效应</div>
+                        <div class="template-card-desc">温度对反应速率的影响</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="actions">
+                <a href="../页面/index.html" class="btn-back">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    返回首页
+                </a>
+                <button class="btn-next" id="nextBtn" onclick="goNext()">
+                    <span class="btn-text">下一步</span>
+                    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <span id="toastMsg"></span>
+    </div>
+
+    <script src="../脚本/upload.js"></script>
+</body>
+</html>
